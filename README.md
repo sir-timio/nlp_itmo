@@ -1,1 +1,1 @@
-# nlp_itmo
+# Tochka X ITMO AutoNLP Competition
