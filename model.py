@@ -1,14 +1,14 @@
 import numpy as np
-import nltk
 from nltk.corpus import stopwords
-nltk.download('stopwords')
 from nltk.stem.snowball import SnowballStemmer
 import pandas as pd
 import pymorphy2
 from catboost import CatBoostRegressor
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics import accuracy_score
 
 
+seed = 42
 class Model:
     def __init__(self):
         self.morph = pymorphy2.MorphAnalyzer()
@@ -19,19 +19,25 @@ class Model:
         self.ru_stemmer = SnowballStemmer('russian')
         self.en_stemmer = SnowballStemmer('english')
 
+    def stemming(self, w):
+        if not w:
+            return ''
+        if w[0] in self.en_alphabet:
+            return self.en_stemmer.stem(w)
+        return self.ru_stemmer.stem(w)
+
     def normalize_text_with_morph(self, x):
         x = x.lower().replace("ё", "е")
-        stammer = self.en_stemmer
-        if x[0] in self.ru_alphabet:
-            stammer = self.ru_stemmer
 
-        words = ''.join([[" ", i][i in self.alphabet] for i in x]).lower().split()
-        words = [stammer.stem(w) for w in words if w not in self.stop_words]
-        return ' '.join([self.morph.parse(w)[0].normal_form for w in words])
+        words = ''.join([[" ", i][i in self.alphabet] for i in x]).lower().split()  # токенизация
+        words = [self.morph.normal_forms(w)[0] for w in words]  # лемматизация
+        words = [self.stemming(w) for w in words]  # стемминг
+        return ' '.join(words)
 
     def _fit_predict(self, train, test):
-        vectorizer_a = TfidfVectorizer(max_features=1000)
-        vectorizer_b = TfidfVectorizer(max_features=1000)
+        vectorizer_a = CountVectorizer(analyzer='word',token_pattern=r'\w{1,}', max_features=None)
+        vectorizer_b = CountVectorizer(analyzer='word',token_pattern=r'\w{1,}', max_features=None)
+
 
         train["message_a"] = train["message_a"].apply(self.normalize_text_with_morph)
         train["message_b"] = train["message_b"].apply(self.normalize_text_with_morph)
@@ -45,9 +51,14 @@ class Model:
         test_b = vectorizer_b.transform(test["message_b"]).toarray()
         _test = np.hstack([test_a, test_b])
 
-        regressor = CatBoostRegressor(random_state=42)
-        regressor.fit(_train, train["target"])
-        return pd.DataFrame(np.round(np.clip(regressor.predict(_test), 0, 1)), columns=["target"])
+
+        model = CatBoostRegressor(random_state=seed, learning_rate=0.1, l2_leaf_reg=5, thread_count=-1, depth=10)
+
+        model.fit(_train, train["target"])
+
+        pred = np.round(np.clip(model.predict(_test), 0, 1))
+        return pd.DataFrame(pred, columns=["target"])
+
 
     def fit_predict(self,
                     train_1, test_1,
@@ -62,5 +73,6 @@ class Model:
         predicted_5 = self._fit_predict(train_5, test_5)
         return [predicted_1, predicted_2, predicted_3, predicted_4, predicted_5]
 
-
-
+    def one_fit_predict(self, train_1, test_1):
+        predicted_1 = self._fit_predict(train_1, test_1)
+        return predicted_1
