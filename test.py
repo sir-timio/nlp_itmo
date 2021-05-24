@@ -1,18 +1,34 @@
 import pandas as pd
-from sklearn.metrics import accuracy_score
+import time
 
-dataset = pd.DataFrame([["Первый текст для примера", "Второй текст для примера", 1],
-                        ["Третий текст для примера", "Четвертый текст для примера", 0]], columns=["message_a", "message_b", "target"])
+df_down = pd.read_csv('train_down.csv')
+df_up = pd.read_csv('train_up.csv')
 
-train = dataset
-test = dataset[["message_a", "message_b"]]
+train = df_down[['message_a', 'message_b']]
+y = df_down['target'].values
 
-true = [dataset[["target"]]] * 5
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(
+    train, y, train_size=0.8, random_state=42)
+
+X_train['target'] = y_train
+
+start = time.time()
 
 from model import Model
 
 model = Model()
-pred = model.fit_predict(train, test, train, test, train, test, train, test, train, test)
+pred = model.one_fit_predict(X_train, X_test)
 
-for i in range(5):
-    print(f"Task_{i}:", accuracy_score(true[i], pred[i]))
+print(f'time: {time.time()-start}')
+
+from sklearn.metrics import accuracy_score
+
+print(f'score: {accuracy_score(pred, y_test)}')
+
+
+
+
+
+

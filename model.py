@@ -5,7 +5,6 @@ import pandas as pd
 import pymorphy2
 from catboost import CatBoostRegressor
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.metrics import accuracy_score
 
 
 seed = 42
@@ -30,11 +29,15 @@ class Model:
         x = x.lower().replace("ё", "е")
 
         words = ''.join([[" ", i][i in self.alphabet] for i in x]).lower().split()  # токенизация
+                                                                                    # и удаление пунктуации и шума
+        print(words)
+        words = [w for w in words if w not in self.stop_words] # удаление стоп слов
         words = [self.morph.normal_forms(w)[0] for w in words]  # лемматизация
         words = [self.stemming(w) for w in words]  # стемминг
         return ' '.join(words)
 
     def _fit_predict(self, train, test):
+
         vectorizer_a = CountVectorizer(analyzer='word',token_pattern=r'\w{1,}', max_features=None)
         vectorizer_b = CountVectorizer(analyzer='word',token_pattern=r'\w{1,}', max_features=None)
 
@@ -51,7 +54,17 @@ class Model:
         test_b = vectorizer_b.transform(test["message_b"]).toarray()
         _test = np.hstack([test_a, test_b])
 
+        grid = {'learning_rate': [0.1, 0.3, 0.5],
+                'depth': [6, 8, 10],
+                'l2_leaf_reg': [1, 3, 5, 7, 9]}
 
+        model = CatBoostRegressor()
+        result = model.randomized_search(grid,
+                                X=_train,
+                                y=train['target'],
+                                )
+
+        print(result)
         model = CatBoostRegressor(random_state=seed, learning_rate=0.1, l2_leaf_reg=5, thread_count=-1, depth=10)
 
         model.fit(_train, train["target"])
