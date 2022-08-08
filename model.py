@@ -11,7 +11,7 @@ seed = 42
 class Model:
     def __init__(self):
         self.morph = pymorphy2.MorphAnalyzer()
-        self.alphabet = 'abcdefghijklmnopqrstuvwxyzабвгдежзийклмнопрстуфхцчшщъыьэюя '
+        self.alphabet = 'abcdefghijklmqrstuvwxyzабвгдежзийклмнопрстуфхцчшщъыьэюя '
         self.ru_alphabet = 'абвгдежзийклмнопрстуфхцчшщъыьэюя'
         self.en_alphabet = 'abcdefghijklmnopqrstuvwxyz'
         self.stop_words = stopwords.words(['english', 'russian'])
@@ -30,7 +30,6 @@ class Model:
 
         words = ''.join([[" ", i][i in self.alphabet] for i in x]).lower().split()  # токенизация
                                                                                     # и удаление пунктуации и шума
-        print(words)
         words = [w for w in words if w not in self.stop_words] # удаление стоп слов
         words = [self.morph.normal_forms(w)[0] for w in words]  # лемматизация
         words = [self.stemming(w) for w in words]  # стемминг
